@@ -50,160 +50,189 @@ def draft_configuration():
     if 'draft_position' not in st.session_state:
         st.session_state.draft_position = 1
     
-    # League size selection outside form for reactivity
-    st.subheader("League Settings")
-    league_size = st.slider(
-        "Number of Teams", 
-        min_value=8, 
-        max_value=16, 
-        value=st.session_state.league_size,
-        key="league_size_slider"
-    )
+    # Create 3-column equal width layout
+    col1, col2, col3 = st.columns([1, 1, 1])
     
-    # Update session state and reset draft position if needed
-    if league_size != st.session_state.league_size:
-        old_league_size = st.session_state.league_size
-        st.session_state.league_size = league_size
-        # Reset draft position if it's invalid for new league size
-        if st.session_state.draft_position > league_size:
-            old_position = st.session_state.draft_position
-            st.session_state.draft_position = 1
-            st.warning(f"Draft position reset from {old_position} to 1 because the new league size ({league_size}) is smaller.")
-    
-    # Show current configuration
-    col1, col2 = st.columns([1, 1])
+    # Column 1 - Team Settings & Draft Configuration
     with col1:
-        st.info(f"**League:** {league_size} teams")
-    with col2:
-        st.info(f"**Available positions:** 1-{league_size}")
-    
-    with st.form("draft_config"):
-        # Create horizontal two-column layout
-        col1, col2 = st.columns([1, 1])
+        st.subheader("Team Settings & Draft")
         
-        # Left Column: Draft Settings
-        with col1:
-            st.subheader("Draft Settings")
-            
-            # Draft position with dynamic max based on league size
-            draft_position = st.slider(
-                "Your Draft Position", 
-                min_value=1, 
-                max_value=league_size, 
-                value=min(st.session_state.draft_position, league_size), 
-                help=f"Select your draft position (1-{league_size})"
-            )
-            
-            scoring_format = st.selectbox("Scoring Format", ["PPR", "Half-PPR", "Standard"])
-            draft_type = st.selectbox("Draft Type", ["Snake", "Linear"])
+        # Number of Teams - 4 buttons in a row
+        st.write("**Number of Teams:**")
+        team_cols = st.columns(4)
+        team_options = [8, 10, 12, 16]
         
-        # Right Column: Roster Configuration
-        with col2:
-            st.subheader("Roster Configuration")
-            
-            qb_col1, qb_col2 = st.columns([3, 1])
-            with qb_col1:
-                st.write("Quarterback (QB):")
-            with qb_col2:
-                qb_spots = st.number_input("", min_value=1, max_value=3, value=1, key="qb", label_visibility="collapsed")
-            
-            rb_col1, rb_col2 = st.columns([3, 1])
-            with rb_col1:
-                st.write("Running Back (RB):")
-            with rb_col2:
-                rb_spots = st.number_input("", min_value=1, max_value=4, value=2, key="rb", label_visibility="collapsed")
-            
-            wr_col1, wr_col2 = st.columns([3, 1])
-            with wr_col1:
-                st.write("Wide Receiver (WR):")
-            with wr_col2:
-                wr_spots = st.number_input("", min_value=1, max_value=4, value=2, key="wr", label_visibility="collapsed")
-            
-            te_col1, te_col2 = st.columns([3, 1])
-            with te_col1:
-                st.write("Tight End (TE):")
-            with te_col2:
-                te_spots = st.number_input("", min_value=1, max_value=3, value=1, key="te", label_visibility="collapsed")
-            
-            flex_col1, flex_col2 = st.columns([3, 1])
-            with flex_col1:
-                st.write("FLEX (RB/WR/TE):")
-            with flex_col2:
-                flex_spots = st.number_input("", min_value=0, max_value=3, value=1, key="flex", label_visibility="collapsed")
-            
-            superflex_col1, superflex_col2 = st.columns([3, 1])
-            with superflex_col1:
-                st.write("FLEX (QB/RB/WR/TE):")
-            with superflex_col2:
-                superflex_spots = st.number_input("", min_value=0, max_value=3, value=0, key="superflex", label_visibility="collapsed")
-            
-            k_col1, k_col2 = st.columns([3, 1])
-            with k_col1:
-                st.write("Kicker (K):")
-            with k_col2:
-                k_spots = st.number_input("", min_value=0, max_value=2, value=1, key="k", label_visibility="collapsed")
-            
-            def_col1, def_col2 = st.columns([3, 1])
-            with def_col1:
-                st.write("Defense (DEF):")
-            with def_col2:
-                def_spots = st.number_input("", min_value=0, max_value=2, value=1, key="def", label_visibility="collapsed")
-            
-            bench_col1, bench_col2 = st.columns([3, 1])
-            with bench_col1:
-                st.write("Bench:")
-            with bench_col2:
-                bench_spots = st.number_input("", min_value=4, max_value=10, value=6, key="bench", label_visibility="collapsed")
+        for i, team_count in enumerate(team_options):
+            with team_cols[i]:
+                button_type = "primary" if st.session_state.league_size == team_count else "secondary"
+                button_label = f"{team_count} Teams" if st.session_state.league_size == team_count else str(team_count)
+                if st.button(button_label, key=f"team_{team_count}", type=button_type, use_container_width=True):
+                    # Update league size and reset draft position if needed
+                    if st.session_state.draft_position > team_count:
+                        st.session_state.draft_position = 1
+                    st.session_state.league_size = team_count
+                    st.rerun()
         
-        # Calculate total roster size and draft rounds (hidden calculation)
-        total_roster = qb_spots + rb_spots + wr_spots + te_spots + flex_spots + superflex_spots + k_spots + def_spots + bench_spots
-        total_rounds = total_roster
+        league_size = st.session_state.league_size
         
-        # Full-width Start Draft button
-        submitted = st.form_submit_button("🚀 Start Draft", type="primary", use_container_width=True)
+        st.write("")  # Add spacing
         
-        if submitted:
-            # Update session state with selected values
-            st.session_state.draft_position = draft_position
-            
-            # Validation: Ensure draft position is valid
+        # Draft Position - Dynamic button grid (4 buttons per row)
+        st.write(f"**Your Draft Position:** (Select 1-{league_size})")
+        position_rows = (league_size + 3) // 4  # Calculate number of rows needed
+        
+        for row in range(position_rows):
+            pos_cols = st.columns(4)
+            for col in range(4):
+                position = row * 4 + col + 1
+                if position <= league_size:
+                    with pos_cols[col]:
+                        button_type = "primary" if st.session_state.draft_position == position else "secondary"
+                        if st.button(str(position), key=f"pos_{position}", type=button_type, use_container_width=True):
+                            st.session_state.draft_position = position
+                            st.rerun()
+        
+        draft_position = st.session_state.draft_position
+        
+        st.write("")  # Add spacing
+        
+        # Scoring Format and Draft Type
+        scoring_format = st.selectbox("Scoring Format", ["PPR", "Half-PPR", "Standard"])
+        draft_type = st.selectbox("Draft Type", ["Snake", "Linear"])
+        
+        st.write("")  # Add spacing
+        
+        # Start Draft Button - Full width of this column only
+        if st.button("🚀 Start Draft", type="primary", use_container_width=True):
+            # Validation
             if draft_position > league_size:
                 st.error(f"Draft position ({draft_position}) cannot be greater than number of teams ({league_size}). Please adjust your settings.")
-                return
+            else:
+                # Get roster configuration from column 2 session state
+                roster_config = {
+                    'QB': st.session_state.get('qb_spots', 1),
+                    'RB': st.session_state.get('rb_spots', 2),
+                    'WR': st.session_state.get('wr_spots', 2),
+                    'TE': st.session_state.get('te_spots', 1),
+                    'FLEX': st.session_state.get('flex_spots', 1),
+                    'SUPERFLEX': st.session_state.get('superflex_spots', 0),
+                    'K': st.session_state.get('k_spots', 1),
+                    'DEF': st.session_state.get('def_spots', 1),
+                    'BENCH': st.session_state.get('bench_spots', 6)
+                }
+                
+                total_rounds = sum(roster_config.values())
+                
+                # Initialize draft engine
+                st.session_state.draft_engine = DraftEngine(
+                    league_size=league_size,
+                    user_position=draft_position,
+                    scoring_format=scoring_format,
+                    draft_type=draft_type,
+                    roster_config=roster_config,
+                    total_rounds=total_rounds
+                )
+                
+                st.session_state.draft_configured = True
+                st.rerun()
+    
+    # Column 2 - Roster Configuration
+    with col2:
+        st.subheader("Roster Configuration")
+        
+        # Initialize roster spots in session state if not present
+        if 'qb_spots' not in st.session_state:
+            st.session_state.qb_spots = 1
+        if 'rb_spots' not in st.session_state:
+            st.session_state.rb_spots = 2
+        if 'wr_spots' not in st.session_state:
+            st.session_state.wr_spots = 2
+        if 'te_spots' not in st.session_state:
+            st.session_state.te_spots = 1
+        if 'flex_spots' not in st.session_state:
+            st.session_state.flex_spots = 1
+        if 'superflex_spots' not in st.session_state:
+            st.session_state.superflex_spots = 0
+        if 'k_spots' not in st.session_state:
+            st.session_state.k_spots = 1
+        if 'def_spots' not in st.session_state:
+            st.session_state.def_spots = 1
+        if 'bench_spots' not in st.session_state:
+            st.session_state.bench_spots = 6
+        
+        # Helper function for +/- buttons
+        def roster_position_selector(position_name, key, min_val, max_val, current_val):
+            pos_col1, pos_col2, pos_col3, pos_col4 = st.columns([2.5, 0.6, 0.4, 0.6])
+            with pos_col1:
+                st.write(f"**{position_name}:**")
+            with pos_col2:
+                # Make - button more visible with explicit styling
+                minus_disabled = current_val <= min_val
+                if st.button("➖", key=f"minus_{key}", disabled=minus_disabled, use_container_width=True, 
+                           help="Decrease" if not minus_disabled else "At minimum"):
+                    st.session_state[key] = max(min_val, current_val - 1)
+                    st.rerun()
+            with pos_col3:
+                # Center the current value display
+                st.markdown(f"<div style='text-align: center; padding: 8px; font-weight: bold; font-size: 16px; background-color: #262730; border-radius: 4px;'>{current_val}</div>", 
+                           unsafe_allow_html=True)
+            with pos_col4:
+                # Make + button more visible with explicit styling
+                plus_disabled = current_val >= max_val
+                if st.button("➕", key=f"plus_{key}", disabled=plus_disabled, use_container_width=True,
+                           help="Increase" if not plus_disabled else "At maximum"):
+                    st.session_state[key] = min(max_val, current_val + 1)
+                    st.rerun()
             
-            # Create roster configuration
-            roster_config = {
-                'QB': qb_spots,
-                'RB': rb_spots,
-                'WR': wr_spots,
-                'TE': te_spots,
-                'FLEX': flex_spots,
-                'SUPERFLEX': superflex_spots,
-                'K': k_spots,
-                'DEF': def_spots,
-                'BENCH': bench_spots
-            }
-            
-            # Initialize draft engine - use league_size from outside the form
-            st.session_state.draft_engine = DraftEngine(
-                league_size=league_size,
-                user_position=draft_position,
-                scoring_format=scoring_format,
-                draft_type=draft_type,
-                roster_config=roster_config,
-                total_rounds=total_rounds
-            )
-            
-            st.session_state.draft_configured = True
-            st.rerun()
+            return current_val
+        
+        # Roster positions with +/- buttons
+        qb_spots = roster_position_selector("Quarterback (QB)", "qb_spots", 0, 3, st.session_state.qb_spots)
+        rb_spots = roster_position_selector("Running Back (RB)", "rb_spots", 0, 4, st.session_state.rb_spots)
+        wr_spots = roster_position_selector("Wide Receiver (WR)", "wr_spots", 0, 4, st.session_state.wr_spots)
+        te_spots = roster_position_selector("Tight End (TE)", "te_spots", 0, 3, st.session_state.te_spots)
+        flex_spots = roster_position_selector("FLEX (RB/WR/TE)", "flex_spots", 0, 3, st.session_state.flex_spots)
+        superflex_spots = roster_position_selector("SUPERFLEX (QB/RB/WR/TE)", "superflex_spots", 0, 3, st.session_state.superflex_spots)
+        k_spots = roster_position_selector("Kicker (K)", "k_spots", 0, 2, st.session_state.k_spots)
+        def_spots = roster_position_selector("Defense (DEF)", "def_spots", 0, 2, st.session_state.def_spots)
+        bench_spots = roster_position_selector("Bench (BEN)", "bench_spots", 0, 10, st.session_state.bench_spots)
+        
+        # Show total roster size
+        total_roster = qb_spots + rb_spots + wr_spots + te_spots + flex_spots + superflex_spots + k_spots + def_spots + bench_spots
+        st.write("")
+        st.info(f"**Total Roster Size:** {total_roster} players")
+    
+    # Column 3 - Placeholder
+    with col3:
+        st.subheader("Draft Summary")
+        
+        # Show current selections
+        st.info(f"**League Size:** {st.session_state.league_size} teams")
+        st.info(f"**Your Position:** #{st.session_state.draft_position}")
+        
+        # Calculate and show total roster
+        total_spots = (st.session_state.get('qb_spots', 1) + st.session_state.get('rb_spots', 2) + 
+                      st.session_state.get('wr_spots', 2) + st.session_state.get('te_spots', 1) + 
+                      st.session_state.get('flex_spots', 1) + st.session_state.get('superflex_spots', 0) + 
+                      st.session_state.get('k_spots', 1) + st.session_state.get('def_spots', 1) + 
+                      st.session_state.get('bench_spots', 6))
+        
+        st.info(f"**Draft Rounds:** {total_spots}")
+        
+        st.write("")
+        st.write("**Coming Soon:**")
+        st.write("• Import/Export drafts")
+        st.write("• Custom player rankings")
+        st.write("• Draft timer")
+        st.write("• Mock draft mode")
 
 def draft_interface():
     """Tabbed draft interface with comprehensive draft view and draft board"""
     engine = st.session_state.draft_engine
     current_team = engine.get_current_team()
     
-    # Create tabs for different views
-    tab1, tab2 = st.tabs(["🎯 Live Draft", "📋 Draft Board"])
+    # Create tabs for different views with enhanced styling
+    tab1, tab2 = st.tabs(["**Live Draft**", "**Draft Board**"])
     
     with tab1:
         show_live_draft_view()
@@ -278,25 +307,25 @@ def show_live_draft_view():
     
     st.divider()
     
-    # Bottom Row (Team Roster and Available Players) - Horizontal layout
+    # Bottom Row (Available Players and Team Roster) - Horizontal layout
     if st.session_state.rosters_expanded:
         # Normal layout when rosters are expanded - side by side
-        bottom_col1, bottom_col2 = st.columns([1, 2])
+        bottom_col1, bottom_col2 = st.columns([2, 1])
         
         with bottom_col1:
-            show_team_selection_and_roster()
-        
-        with bottom_col2:
             show_available_players(expanded=False)
-    else:
-        # Horizontal layout when rosters are minimized - thin sidebar + full width players
-        bottom_col1, bottom_col2 = st.columns([0.1, 2.9])  # Very thin left column
-        
-        with bottom_col1:
-            show_team_rosters_minimized()
         
         with bottom_col2:
+            show_team_selection_and_roster()
+    else:
+        # Horizontal layout when rosters are minimized - full width players + thin right sidebar
+        bottom_col1, bottom_col2 = st.columns([2.9, 0.1])  # Very thin right column
+        
+        with bottom_col1:
             show_available_players(expanded=True)
+        
+        with bottom_col2:
+            show_team_rosters_minimized()
 
 def get_position_color(position):
     """Get the background color for a position"""
@@ -313,7 +342,6 @@ def get_position_color(position):
 
 def show_mini_draft_board():
     """Show a compact, scrollable draft board with 4 rounds context"""
-    st.subheader("📋 Draft Progress")
     
     engine = st.session_state.draft_engine
     draft_board = engine.get_draft_board()
@@ -345,8 +373,8 @@ def show_mini_draft_board():
                 # Highlight user's team column with background - larger and centered
                 st.markdown(f"""
                 <div style="
-                    background-color: #E8F5E8;
-                    border: 2px solid #4CAF50;
+                    background-color: #2E7D3225;
+                    border: 2px solid #2E7D32;
                     border-radius: 6px;
                     padding: 8px;
                     text-align: center;
@@ -542,8 +570,8 @@ def show_draft_board_view():
                 # Highlight user's team column with background - larger and centered
                 st.markdown(f"""
                 <div style="
-                    background-color: #E8F5E8;
-                    border: 2px solid #4CAF50;
+                    background-color: #2E7D3225;
+                    border: 2px solid #2E7D32;
                     border-radius: 6px;
                     padding: 8px;
                     text-align: center;
@@ -697,12 +725,12 @@ def show_draft_board_view():
                             """, unsafe_allow_html=True)
 
 def show_team_rosters_minimized():
-    """Show a minimized vertical sidebar for team rosters with expand button"""
+    """Show a minimized vertical sidebar for team rosters with expand button on the right"""
     # Create a vertical sidebar with expand button
     st.markdown("""
     <div style="
-        background-color: #E8F5E8;
-        border: 2px solid #4CAF50;
+        background-color: #2E7D3225;
+        border: 2px solid #2E7D32;
         border-radius: 6px;
         padding: 8px 4px;
         text-align: center;
@@ -733,69 +761,241 @@ def show_team_rosters_minimized():
         st.rerun()
 
 def show_team_selection_and_roster():
-    """Show team selection dropdown and roster for selected team"""
-    # Add horizontal collapse button
-    col1, col2 = st.columns([4, 1])
+    """Show team selection dropdown and roster for selected team with smart position assignment"""
+    # Integrated header with collapse button and team dropdown on same line
+    col1, col2, col3 = st.columns([0.5, 2, 2])
     
     with col1:
-        st.subheader("👥 Team Rosters")
-    
-    with col2:
-        if st.button("◀️", help="Collapse to sidebar", key="minimize_rosters"):
+        if st.button("▶️", help="Collapse to sidebar", key="minimize_rosters"):
             st.session_state.rosters_expanded = False
             st.rerun()
     
-    engine = st.session_state.draft_engine
+    with col2:
+        st.subheader("Team Rosters")
     
-    # Team selection dropdown
-    team_options = [f"Team {i}" for i in range(1, engine.league_size + 1)]
-    selected_team_idx = st.selectbox(
-        "Select Team to View",
-        range(len(team_options)),
-        format_func=lambda x: team_options[x],
-        index=engine.user_position - 1  # Default to user's team
-    )
-    selected_team = selected_team_idx + 1
+    with col3:
+        engine = st.session_state.draft_engine
+        # Team selection dropdown inline with header
+        team_options = [f"Team {i}" for i in range(1, engine.league_size + 1)]
+        selected_team_idx = st.selectbox(
+            "Select Team:",
+            range(len(team_options)),
+            format_func=lambda x: team_options[x],
+            index=engine.user_position - 1,  # Default to user's team
+            key="team_dropdown",
+            label_visibility="collapsed"
+        )
+        selected_team = selected_team_idx + 1
     
-    # Highlight if it's user's team
-    if selected_team == engine.user_position:
-        st.info("🎯 This is your team")
-    
-    # Show roster for selected team
+    # Get roster for selected team
     roster = engine.get_team_roster(selected_team)
     
-    if not roster:
-        st.write("No players drafted yet")
-        return
+    # Smart position assignment logic (works with empty rosters too)
+    assigned_roster = assign_players_to_positions(roster, engine.roster_config)
     
-    # Group players by position
-    position_groups = {}
+    # Display roster hierarchically
+    display_hierarchical_roster(assigned_roster, engine.roster_config)
+
+def assign_players_to_positions(roster, roster_config):
+    """
+    Smart position assignment logic that assigns players to optimal roster positions
+    Priority: Most specific position → FLEX/SUPERFLEX → Bench
+    """
+    # Create empty roster structure
+    assigned_roster = create_empty_roster_structure(roster_config)
+    
+    # If no roster or empty roster, return empty structure
+    if not roster:
+        return assigned_roster
+    
+    # Group players by their original position
+    players_by_position = {}
     for player in roster:
         pos = player['position']
-        if pos not in position_groups:
-            position_groups[pos] = []
-        position_groups[pos].append(player)
+        if pos not in players_by_position:
+            players_by_position[pos] = []
+        players_by_position[pos].append(player)
     
-    # Display roster by position
-    positions = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX', 'K', 'DEF']
+    # Assignment priority order
+    def assign_player_to_slot(player, player_position):
+        """Try to assign a player to the best available slot"""
+        
+        # 1. Most specific position first
+        if player_position in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
+            # Try primary position slots first
+            for i in range(roster_config.get(player_position, 0)):
+                if assigned_roster['starting_lineup'][player_position][i] is None:
+                    assigned_roster['starting_lineup'][player_position][i] = player
+                    return True
+        
+        # 2. FLEX positions second (for RB/WR/TE)
+        if player_position in ['RB', 'WR', 'TE'] and roster_config.get('FLEX', 0) > 0:
+            for i in range(roster_config['FLEX']):
+                if assigned_roster['starting_lineup']['FLEX'][i] is None:
+                    assigned_roster['starting_lineup']['FLEX'][i] = player
+                    return True
+        
+        # 3. SUPERFLEX positions third (for QB/RB/WR/TE)
+        if player_position in ['QB', 'RB', 'WR', 'TE'] and roster_config.get('SUPERFLEX', 0) > 0:
+            for i in range(roster_config['SUPERFLEX']):
+                if assigned_roster['starting_lineup']['SUPERFLEX'][i] is None:
+                    assigned_roster['starting_lineup']['SUPERFLEX'][i] = player
+                    return True
+        
+        # 4. Bench last
+        for i in range(roster_config.get('BENCH', 0)):
+            if assigned_roster['bench'][i] is None:
+                assigned_roster['bench'][i] = player
+                return True
+        
+        return False
     
-    for pos in positions:
-        if pos in position_groups:
-            st.write(f"**{pos}:**")
-            for player in position_groups[pos]:
-                st.write(f"• {player['player_name']} ({player.get('nfl_team', 'N/A')})")
+    # Assign players in order of specificity (most specific positions first)
+    position_priority = ['K', 'DEF', 'QB', 'TE', 'RB', 'WR']
+    
+    for position in position_priority:
+        if position in players_by_position:
+            for player in players_by_position[position]:
+                assign_player_to_slot(player, position)
+    
+    return assigned_roster
+
+def create_empty_roster_structure(roster_config):
+    """Create an empty roster structure based on configuration"""
+    roster_structure = {
+        'starting_lineup': {},
+        'bench': [None] * roster_config.get('BENCH', 0)
+    }
+    
+    # Initialize starting lineup positions
+    for position in ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX', 'K', 'DEF']:
+        slot_count = roster_config.get(position, 0)
+        if slot_count > 0:
+            roster_structure['starting_lineup'][position] = [None] * slot_count
+    
+    return roster_structure
+
+def display_hierarchical_roster(assigned_roster, roster_config):
+    """Display roster in hierarchical position-based layout"""
+    
+    # Starting Lineup Section
+    st.write("### 🏈 Starting Lineup")
+    
+    # Position display order
+    position_labels = {
+        'QB': 'Quarterback',
+        'RB': 'Running Back', 
+        'WR': 'Wide Receiver',
+        'TE': 'Tight End',
+        'FLEX': 'FLEX (RB/WR/TE)',
+        'SUPERFLEX': 'SUPERFLEX (QB/RB/WR/TE)',
+        'K': 'Kicker',
+        'DEF': 'Defense'
+    }
+    
+    for position in ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX', 'K', 'DEF']:
+        if position in assigned_roster['starting_lineup']:
+            slots = assigned_roster['starting_lineup'][position]
+            slot_count = len(slots)
+            
+            if slot_count == 1:
+                # Single slot position
+                display_position_slot(position_labels[position], slots[0], position)
+            else:
+                # Multiple slot position
+                for i, player in enumerate(slots):
+                    slot_label = f"{position_labels[position]} {i+1}"
+                    display_position_slot(slot_label, player, position)
+    
+    # Bench Section
+    if roster_config.get('BENCH', 0) > 0:
+        st.write("### 🪑 Bench")
+        bench_slots = assigned_roster['bench']
+        
+        for i, player in enumerate(bench_slots):
+            slot_label = f"Bench {i+1}"
+            display_position_slot(slot_label, player, 'BENCH')
+
+def display_position_slot(slot_label, player, position_type):
+    """Display a single position slot with player card or empty placeholder"""
+    
+    col1, col2 = st.columns([1.5, 3])
+    
+    with col1:
+        st.write(f"**{slot_label}:**")
+    
+    with col2:
+        if player is not None:
+            # Player card styling with matching text colors
+            position_color = get_position_color(player['position'])
+            
+            st.markdown(f"""
+            <div style="
+                border: 2px solid {position_color};
+                border-radius: 8px;
+                padding: 8px 12px;
+                background: linear-gradient(135deg, {position_color}15, {position_color}25);
+                margin: 2px 0;
+                display: flex;
+                align-items: center;
+                min-height: 45px;
+            ">
+                <div style="
+                    background-color: {position_color};
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 12px;
+                    margin-right: 12px;
+                    min-width: 35px;
+                    text-align: center;
+                ">
+                    {player['position']}
+                </div>
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: bold; font-size: 16px; color: {position_color};">
+                        {player['player_name']}
+                    </div>
+                    <div style="font-size: 13px; color: {position_color}; opacity: 0.8;">
+                        {player.get('nfl_team', 'N/A')}
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            # Show empty slots
-            required_spots = engine.roster_config.get(pos, 0)
-            if required_spots > 0:
-                st.write(f"**{pos}:** *({required_spots} open)*")
-    
-    # Show bench players
-    bench_players = [p for p in roster if p['position'] not in positions]
-    if bench_players:
-        st.write("**BENCH:**")
-        for player in bench_players:
-            st.write(f"• {player['player_name']} ({player['position']}) - {player.get('nfl_team', 'N/A')}")
+            # Empty slot placeholder with dark theme styling
+            st.markdown(f"""
+            <div style="
+                border: 2px dashed #666666;
+                border-radius: 8px;
+                padding: 8px 12px;
+                background-color: #2B2B2B;
+                margin: 2px 0;
+                display: flex;
+                align-items: center;
+                min-height: 45px;
+                color: #CCCCCC;
+                font-style: italic;
+            ">
+                <div style="
+                    background-color: #404040;
+                    color: #CCCCCC;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 12px;
+                    margin-right: 12px;
+                    min-width: 35px;
+                    text-align: center;
+                ">
+                    ---
+                </div>
+                <div style="flex-grow: 1; font-size: 14px; color: #CCCCCC;">
+                    Empty
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 def show_available_players(expanded=False):
