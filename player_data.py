@@ -1,6 +1,6 @@
 import pandas as pd
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import requests
 from pathlib import Path
 
@@ -208,7 +208,7 @@ class PlayerDatabase:
     
     def get_available_players(self, drafted_players: List[str], 
                             search_term: str = None, 
-                            position_filter: str = None,
+                            position_filter: Union[str, List[str]] = None,
                             team_filter: str = None) -> pd.DataFrame:
         """Get available (undrafted) players with optional filters"""
         # Start with all players
@@ -219,7 +219,12 @@ class PlayerDatabase:
             available = available[available['name'].str.contains(search_term, case=False, na=False)]
         
         if position_filter:
-            available = available[available['position'] == position_filter]
+            if isinstance(position_filter, list):
+                # For FLEX/SUPERFLEX - use isin() for multiple positions
+                available = available[available['position'].isin(position_filter)]
+            else:
+                # For single positions - use == as before
+                available = available[available['position'] == position_filter]
         
         if team_filter:
             available = available[available['team'] == team_filter]

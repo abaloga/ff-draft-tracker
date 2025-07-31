@@ -65,7 +65,7 @@ def draft_configuration():
         for i, team_count in enumerate(team_options):
             with team_cols[i]:
                 button_type = "primary" if st.session_state.league_size == team_count else "secondary"
-                button_label = f"{team_count} Teams" if st.session_state.league_size == team_count else str(team_count)
+                button_label = f"{team_count}" if st.session_state.league_size == team_count else str(team_count)
                 if st.button(button_label, key=f"team_{team_count}", type=button_type, use_container_width=True):
                     # Update league size and reset draft position if needed
                     if st.session_state.draft_position > team_count:
@@ -103,7 +103,7 @@ def draft_configuration():
         st.write("")  # Add spacing
         
         # Start Draft Button - Full width of this column only
-        if st.button("🚀 Start Draft", type="primary", use_container_width=True):
+        if st.button("Start Draft", type="primary", use_container_width=True):
             # Validation
             if draft_position > league_size:
                 st.error(f"Draft position ({draft_position}) cannot be greater than number of teams ({league_size}). Please adjust your settings.")
@@ -248,8 +248,7 @@ def show_draft_sidebar_control():
     picks_in_round = (engine.current_pick - 1) % engine.league_size + 1
     
     # Draft Overview
-    st.markdown("**📊 Draft Overview**")
-    st.divider()
+    st.write(" ")  # Add spacing
     
     # Overall Pick
     st.markdown(f"**Overall Pick: {engine.current_pick}/{engine.total_picks}**")
@@ -260,10 +259,10 @@ def show_draft_sidebar_control():
     # Pick within round
     st.markdown(f"**Pick {picks_in_round}**")
     
-    st.divider()
+    st.write(" ")  # Add spacing
     
     # Show next few picks for user
-    user_picks = engine.get_next_user_picks(3)
+    user_picks = engine.get_next_user_picks(4)
     if user_picks:
         picks_text = ", ".join([str(pick) for pick in user_picks])
         st.markdown(f"**🎯 Your next picks:** {picks_text}")
@@ -305,12 +304,13 @@ def show_live_draft_view():
     # Middle Section - Scrollable Mini Draft Board
     show_mini_draft_board()
     
-    st.divider()
-    
+    st.write("")
+
     # Bottom Row (Available Players and Team Roster) - Horizontal layout
     if st.session_state.rosters_expanded:
         # Normal layout when rosters are expanded - side by side
-        bottom_col1, bottom_col2 = st.columns([2, 1])
+        # Adjusted ratio to give more space to Available Players (3:1 instead of 2:1)
+        bottom_col1, bottom_col2 = st.columns([3, 1])
         
         with bottom_col1:
             show_available_players(expanded=False)
@@ -387,8 +387,8 @@ def show_mini_draft_board():
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"<div style='text-align: center; font-size: 16px; font-weight: bold;'>Team {team_num}</div>", unsafe_allow_html=True)
-    
-    # Create scrollable container for the draft board
+
+    # Create a container for the draft board
     st.markdown("""
     <style>
     @keyframes pulse {
@@ -402,8 +402,8 @@ def show_mini_draft_board():
     </style>
     """, unsafe_allow_html=True)
     
-    # Create a container with limited height for 2 rounds only
-    with st.container(height=200):
+    # Create a container with limited height for all rounds
+    with st.container(height=350):
         # Create scrollable content
         for round_num in range(start_round, end_round + 1):
             round_cols = st.columns([1] + [2] * engine.league_size)
@@ -536,7 +536,8 @@ def show_mini_draft_board():
                                     font-size: 11px;
                                 ">
                                     <strong>#{pick_number}</strong><br>
-                                    <small>Team {team_num}</small>
+                                    <br>
+                                    <strong>Team {team_num}</strong><br>
                                 </div>
                                 """, unsafe_allow_html=True)
             
@@ -726,7 +727,12 @@ def show_draft_board_view():
 
 def show_team_rosters_minimized():
     """Show a minimized vertical sidebar for team rosters with expand button on the right"""
-    # Create a vertical sidebar with expand button
+    # Expand button positioned at the top
+    if st.button("◀", help="Expand team rosters to full view", key="expand_rosters", use_container_width=True):
+        st.session_state.rosters_expanded = True
+        st.rerun()
+    
+    # Create a vertical sidebar below the button
     st.markdown("""
     <div style="
         background-color: #2E7D3225;
@@ -734,12 +740,13 @@ def show_team_rosters_minimized():
         border-radius: 6px;
         padding: 8px 4px;
         text-align: center;
-        height: 350px;
+        height: 300px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         margin: 0;
+        margin-top: 8px;
     ">
         <div style="
             writing-mode: vertical-rl;
@@ -747,18 +754,11 @@ def show_team_rosters_minimized():
             font-weight: bold;
             font-size: 14px;
             color: #2E7D32;
-            margin-bottom: 20px;
         ">
-            👥 Team Rosters
+            Team Rosters
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Expand button positioned below the sidebar
-    st.write("")  # Add some space
-    if st.button("📋", help="Expand team rosters to full view", key="expand_rosters", use_container_width=True):
-        st.session_state.rosters_expanded = True
-        st.rerun()
 
 def show_team_selection_and_roster():
     """Show team selection dropdown and roster for selected team with smart position assignment"""
@@ -766,7 +766,7 @@ def show_team_selection_and_roster():
     col1, col2, col3 = st.columns([0.5, 2, 2])
     
     with col1:
-        if st.button("▶️", help="Collapse to sidebar", key="minimize_rosters"):
+        if st.button("▶", help="Collapse to sidebar", key="minimize_rosters"):
             st.session_state.rosters_expanded = False
             st.rerun()
     
@@ -878,19 +878,16 @@ def create_empty_roster_structure(roster_config):
 def display_hierarchical_roster(assigned_roster, roster_config):
     """Display roster in hierarchical position-based layout"""
     
-    # Starting Lineup Section
-    st.write("### 🏈 Starting Lineup")
-    
-    # Position display order
+    # Position display order - using shorthand labels
     position_labels = {
-        'QB': 'Quarterback',
-        'RB': 'Running Back', 
-        'WR': 'Wide Receiver',
-        'TE': 'Tight End',
-        'FLEX': 'FLEX (RB/WR/TE)',
-        'SUPERFLEX': 'SUPERFLEX (QB/RB/WR/TE)',
-        'K': 'Kicker',
-        'DEF': 'Defense'
+        'QB': 'QB',
+        'RB': 'RB', 
+        'WR': 'WR',
+        'TE': 'TE',
+        'FLEX': 'FLEX',
+        'SUPERFLEX': 'SUPERFLEX',
+        'K': 'K',
+        'DEF': 'DEF'
     }
     
     for position in ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX', 'K', 'DEF']:
@@ -902,148 +899,217 @@ def display_hierarchical_roster(assigned_roster, roster_config):
                 # Single slot position
                 display_position_slot(position_labels[position], slots[0], position)
             else:
-                # Multiple slot position
+                # Multiple slot position - no numbering, just repeat the position name
                 for i, player in enumerate(slots):
-                    slot_label = f"{position_labels[position]} {i+1}"
-                    display_position_slot(slot_label, player, position)
+                    display_position_slot(position_labels[position], player, position)
     
-    # Bench Section
+    # Bench positions - no section header
     if roster_config.get('BENCH', 0) > 0:
-        st.write("### 🪑 Bench")
         bench_slots = assigned_roster['bench']
         
         for i, player in enumerate(bench_slots):
-            slot_label = f"Bench {i+1}"
-            display_position_slot(slot_label, player, 'BENCH')
+            display_position_slot("BN", player, 'BENCH')
 
 def display_position_slot(slot_label, player, position_type):
     """Display a single position slot with player card or empty placeholder"""
     
-    col1, col2 = st.columns([1.5, 3])
-    
-    with col1:
-        st.write(f"**{slot_label}:**")
-    
-    with col2:
-        if player is not None:
-            # Player card styling with matching text colors
-            position_color = get_position_color(player['position'])
-            
-            st.markdown(f"""
+    if player is not None:
+        # Player card styling with full width and position label inside
+        position_color = get_position_color(player['position'])
+        
+        st.markdown(f"""
+        <div style="
+            border: 2px solid {position_color};
+            border-radius: 8px;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, {position_color}15, {position_color}25);
+            margin: 2px 0;
+            display: flex;
+            align-items: center;
+            min-height: 45px;
+            width: 100%;
+        ">
             <div style="
-                border: 2px solid {position_color};
-                border-radius: 8px;
-                padding: 8px 12px;
-                background: linear-gradient(135deg, {position_color}15, {position_color}25);
-                margin: 2px 0;
-                display: flex;
-                align-items: center;
-                min-height: 45px;
+                background-color: {position_color};
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 12px;
+                margin-right: 12px;
+                min-width: 45px;
+                text-align: center;
             ">
-                <div style="
-                    background-color: {position_color};
-                    color: white;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 12px;
-                    margin-right: 12px;
-                    min-width: 35px;
-                    text-align: center;
-                ">
-                    {player['position']}
+                {slot_label}
+            </div>
+            <div style="flex-grow: 1;">
+                <div style="font-weight: bold; font-size: 16px; color: white;">
+                    {player['player_name']}
                 </div>
-                <div style="flex-grow: 1;">
-                    <div style="font-weight: bold; font-size: 16px; color: {position_color};">
-                        {player['player_name']}
-                    </div>
-                    <div style="font-size: 13px; color: {position_color}; opacity: 0.8;">
-                        {player.get('nfl_team', 'N/A')}
-                    </div>
+                <div style="font-size: 13px; color: white; opacity: 0.8;">
+                    {player.get('nfl_team', 'N/A')}
                 </div>
             </div>
-            """, unsafe_allow_html=True)
-        else:
-            # Empty slot placeholder with dark theme styling
-            st.markdown(f"""
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Empty slot placeholder showing position name
+        st.markdown(f"""
+        <div style="
+            border: 2px dashed #666666;
+            border-radius: 8px;
+            padding: 8px 12px;
+            background-color: #2B2B2B;
+            margin: 2px 0;
+            display: flex;
+            align-items: center;
+            min-height: 45px;
+            color: #CCCCCC;
+            font-style: italic;
+            width: 100%;
+        ">
             <div style="
-                border: 2px dashed #666666;
-                border-radius: 8px;
-                padding: 8px 12px;
-                background-color: #2B2B2B;
-                margin: 2px 0;
-                display: flex;
-                align-items: center;
-                min-height: 45px;
+                background-color: #404040;
                 color: #CCCCCC;
-                font-style: italic;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 12px;
+                margin-right: 12px;
+                min-width: 45px;
+                text-align: center;
             ">
-                <div style="
-                    background-color: #404040;
-                    color: #CCCCCC;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 12px;
-                    margin-right: 12px;
-                    min-width: 35px;
-                    text-align: center;
-                ">
-                    ---
-                </div>
-                <div style="flex-grow: 1; font-size: 14px; color: #CCCCCC;">
-                    Empty
-                </div>
+                {slot_label}
             </div>
-            """, unsafe_allow_html=True)
+            <div style="flex-grow: 1; font-size: 14px; color: #CCCCCC;">
+                Empty
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
+
+def calculate_roster_height():
+    """Calculate the height needed for the roster section based on configuration"""
+    if not st.session_state.draft_engine:
+        return 400  # Default height
+    
+    roster_config = st.session_state.draft_engine.roster_config
+    
+    # Base height for headers and padding
+    base_height = 100
+    
+    # Height per position slot (including labels and player cards)
+    slot_height = 65
+    
+    # Count starting lineup positions
+    starting_positions = 0
+    for position in ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX', 'K', 'DEF']:
+        starting_positions += roster_config.get(position, 0)
+    
+    # Count bench positions
+    bench_positions = roster_config.get('BENCH', 0)
+    
+    # Add extra height for section headers (Starting Lineup, Bench)
+    section_headers = 60
+    
+    total_height = base_height + (starting_positions * slot_height) + (bench_positions * slot_height) + section_headers
+    
+    # Ensure minimum height and reasonable maximum
+    return max(400, min(total_height, 800))
 
 def show_available_players(expanded=False):
-    """Display available players with optimized layout"""
+    """Display available players with dynamic scrolling to match roster height"""
     # Add expanded indicator when in full width mode
     if expanded or not st.session_state.rosters_expanded:
-        st.subheader("🎯 Available Players (Expanded View)")
+        st.subheader("Available Players")
     else:
-        st.subheader("🎯 Available Players")
+        st.subheader("Available Players")
     
     player_db = st.session_state.player_db
     drafted_players = st.session_state.draft_engine.get_drafted_players()
     
-    # Compact filter row
-    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+    # Initialize filter states
+    if 'available_players_position_filter' not in st.session_state:
+        st.session_state.available_players_position_filter = "All"
+    if 'search_expanded' not in st.session_state:
+        st.session_state.search_expanded = False
     
-    with col1:
-        search_term = st.text_input("🔍 Search Player Name", placeholder="Type player name...")
+    # Get roster configuration and create position options
+    roster_config = st.session_state.draft_engine.roster_config
+    position_options = ["All"]
+    for position in ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX', 'K', 'DEF']:
+        if roster_config.get(position, 0) > 0:
+            position_options.append(position)
     
-    with col2:
-        position_filter = st.selectbox(
-            "Position", 
-            ["All"] + ["QB", "RB", "WR", "TE", "K", "DEF"]
-        )
+    # Single line layout with collapsible search
+    if st.session_state.search_expanded:
+        # Expanded state: search bar takes more space, buttons compressed
+        search_col, button_col = st.columns([1.5, 2.5])
+        
+        with search_col:
+            search_term = st.text_input("🔍 Search Player Name", placeholder="Type player name...", key="expanded_search")
+            # Auto-collapse when search is empty and loses focus (simulated)
+            if not search_term:
+                # Add a small collapse button next to search
+                if st.button("✕", key="collapse_search", help="Collapse search"):
+                    st.session_state.search_expanded = False
+                    st.rerun()
+    else:
+        # Collapsed state: search icon takes minimal space, buttons get more room
+        search_col, button_col = st.columns([0.3, 3.7])
+        search_term = ""  # No search when collapsed
+        
+        with search_col:
+            # Search icon button to expand
+            if st.button("🔍", key="expand_search", help="Click to search players", use_container_width=True):
+                st.session_state.search_expanded = True
+                st.rerun()
     
-    with col3:
-        team_filter = st.selectbox(
-            "NFL Team",
-            ["All"] + player_db.get_nfl_teams()
-        )
-    
-    with col4:
-        show_count = st.selectbox("Show", [25, 50, 100], index=1)
+    # Position filter buttons - single row layout
+    with button_col:
+        # Calculate optimal button distribution for single row
+        button_cols = st.columns(len(position_options))
+        
+        for i, position in enumerate(position_options):
+            with button_cols[i]:
+                button_type = "primary" if st.session_state.available_players_position_filter == position else "secondary"
+                # Shorter button labels when search is expanded to save space
+                if st.session_state.search_expanded and position not in ["All", "QB", "RB", "WR", "TE", "K"]:
+                    # Use shorter labels for longer position names when search is expanded
+                    display_label = {"FLEX": "FLX", "SUPERFLEX": "SF", "DEF": "D"}.get(position, position)
+                else:
+                    display_label = position
+                
+                if st.button(display_label, key=f"pos_filter_{position}", type=button_type, use_container_width=True):
+                    st.session_state.available_players_position_filter = position
+                    st.rerun()
     
     # Get filtered players
+    position_filter = st.session_state.available_players_position_filter
+    
+    # Handle special position filters for FLEX and SUPERFLEX
+    if position_filter == "FLEX":
+        # FLEX positions: RB, WR, TE
+        actual_position_filter = ['RB', 'WR', 'TE']
+    elif position_filter == "SUPERFLEX":
+        # SUPERFLEX positions: QB, RB, WR, TE
+        actual_position_filter = ['QB', 'RB', 'WR', 'TE']
+    elif position_filter == "All":
+        actual_position_filter = None
+    else:
+        # Regular single position filter
+        actual_position_filter = position_filter
+    
     available_players = player_db.get_available_players(
         drafted_players=drafted_players,
         search_term=search_term,
-        position_filter=position_filter if position_filter != "All" else None,
-        team_filter=team_filter if team_filter != "All" else None
+        position_filter=actual_position_filter,
+        team_filter=None  # Removed team filtering
     )
     
     if available_players.empty:
         st.warning("No players match your current filters.")
         return
-    
-    # Create a more compact table-like display
-    st.write(f"**{len(available_players)} players available** (showing top {show_count})")
     
     # Header row
     header_cols = st.columns([3, 1, 1, 1, 1, 1])
@@ -1057,33 +1123,35 @@ def show_available_players(expanded=False):
         st.write("**Rank**")
     with header_cols[4]:
         st.write("**Proj**")
-    with header_cols[5]:
-        st.write("**Action**")
+
     
-    st.divider()
+    # Calculate height to match roster section
+    container_height = calculate_roster_height()
     
-    # Display players in compact rows
-    for idx, player in available_players.head(show_count).iterrows():
-        col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1])
-        
-        with col1:
-            st.write(f"**{player['name']}**")
-        
-        with col2:
-            st.write(player['position'])
-        
-        with col3:
-            st.write(player['team'])
-        
-        with col4:
-            st.write(f"#{player.get('rank', 'N/A')}")
-        
-        with col5:
-            st.write(player.get('projected_points', 'N/A'))
-        
-        with col6:
-            if st.button(f"Draft", key=f"draft_{player['id']}"):
-                draft_player(player)
+    # Create scrollable container with dynamic height
+    with st.container(height=container_height):
+        # Display all players in compact rows
+        for idx, player in available_players.iterrows():
+            col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1])
+            
+            with col1:
+                st.write(f"**{player['name']}**")
+            
+            with col2:
+                st.write(player['position'])
+            
+            with col3:
+                st.write(player['team'])
+            
+            with col4:
+                st.write(f"#{player.get('rank', 'N/A')}")
+            
+            with col5:
+                st.write(player.get('projected_points', 'N/A'))
+            
+            with col6:
+                if st.button(f"Draft", key=f"draft_{player['id']}"):
+                    draft_player(player)
 
 def draft_player(player):
     """Draft a player to the current team"""
