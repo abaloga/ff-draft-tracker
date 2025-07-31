@@ -1112,46 +1112,76 @@ def show_available_players(expanded=False):
         return
     
     # Header row
-    header_cols = st.columns([3, 1, 1, 1, 1, 1])
+    header_cols = st.columns([1, 1, 3, 1, 1, 1])
     with header_cols[0]:
-        st.write("**Player**")
+        st.write("**Action**")
     with header_cols[1]:
-        st.write("**Pos**")
+        st.write("**ADP**")
     with header_cols[2]:
-        st.write("**Team**")
+        st.write("**Player**")
     with header_cols[3]:
-        st.write("**Rank**")
+        st.write("**Pos**")
     with header_cols[4]:
+        st.write("**Team**")
+    with header_cols[5]:
         st.write("**Proj**")
 
     
     # Calculate height to match roster section
     container_height = calculate_roster_height()
     
+    # Add CSS for more compact player rows
+    st.markdown("""
+    <style>
+    /* Decrease row height in available players */
+    div[data-testid="column"] {
+        padding: 2px 4px !important;
+    }
+
+    /* Reduce spacing between player rows */
+    .stButton {
+        margin: 1px 0 !important;
+    }
+
+    /* Reduce text size and line height for more compact display */
+    .stMarkdown p {
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+        margin: 2px 0 !important;
+    }
+
+    /* Make buttons more compact */
+    .stButton button {
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     # Create scrollable container with dynamic height
     with st.container(height=container_height):
         # Display all players in compact rows
         for idx, player in available_players.iterrows():
-            col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 1, 1, 1])
+            col1, col2, col3, col4, col5, col6 = st.columns([1, 1, 3, 1, 1, 1])
             
             with col1:
-                st.write(f"**{player['name']}**")
-            
-            with col2:
-                st.write(player['position'])
-            
-            with col3:
-                st.write(player['team'])
-            
-            with col4:
-                st.write(f"#{player.get('rank', 'N/A')}")
-            
-            with col5:
-                st.write(player.get('projected_points', 'N/A'))
-            
-            with col6:
                 if st.button(f"Draft", key=f"draft_{player['id']}"):
                     draft_player(player)
+            
+            with col2:
+                st.write(f"#{player.get('rank', 'N/A')}")
+            
+            with col3:
+                st.write(f"**{player['name']}**")
+            
+            with col4:
+                st.write(player['position'])
+            
+            with col5:
+                st.write(player['team'])
+            
+            with col6:
+                st.write(player.get('projected_points', 'N/A'))
 
 def draft_player(player):
     """Draft a player to the current team"""

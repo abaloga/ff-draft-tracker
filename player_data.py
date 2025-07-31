@@ -8,24 +8,66 @@ class PlayerDatabase:
     """Manages fantasy football player data and rankings"""
     
     def __init__(self, data_file: str = None):
-        self.data_file = data_file
+        self.data_file = data_file if data_file else "ff_players_espn.csv"
         self.players_df = pd.DataFrame()
         self.nfl_teams = []
         self.load_player_data()
     
     def load_player_data(self):
-        """Load player data from file or generate sample data"""
-        if self.data_file and Path(self.data_file).exists():
-            try:
-                self.players_df = pd.read_csv(self.data_file)
+        """Load player data from ESPN CSV file"""
+        try:
+            # Try to load the ESPN CSV file
+            if Path(self.data_file).exists():
+                print(f"Loading ESPN player data from {self.data_file}...")
+                raw_df = pd.read_csv(self.data_file)
+                self.players_df = self._process_espn_data(raw_df)
                 self.nfl_teams = sorted(self.players_df['team'].unique().tolist())
-                return
-            except Exception as e:
-                print(f"Error loading player data: {e}")
+                print(f"Successfully loaded {len(self.players_df)} players from ESPN data")
+            else:
+                print(f"ESPN CSV file not found at {self.data_file}, generating sample data...")
+                self.players_df = self._generate_sample_data()
+                self.nfl_teams = sorted(self.players_df['team'].unique().tolist())
+        except Exception as e:
+            print(f"Error loading ESPN data: {e}")
+            print("Falling back to sample data...")
+            self.players_df = self._generate_sample_data()
+            self.nfl_teams = sorted(self.players_df['team'].unique().tolist())
+    
+    def _process_espn_data(self, raw_df: pd.DataFrame) -> pd.DataFrame:
+        """Process ESPN CSV data into the app's expected format"""
+        # Clean the data - remove rows with missing essential data
+        cleaned_df = raw_df.dropna(subset=['Player', 'Pos']).copy()
         
-        # Generate sample player data if no file exists
-        self.players_df = self._generate_sample_data()
-        self.nfl_teams = sorted(self.players_df['team'].unique().tolist())
+        # Map CSV columns to app's expected format
+        processed_df = pd.DataFrame({
+            'id': range(len(cleaned_df)),  # Create sequential IDs
+            'name': cleaned_df['Player'].fillna('Unknown Player').str.strip(),
+            'position': cleaned_df['Pos'].fillna('FLEX').str.upper().str.strip(),
+            'team': cleaned_df['Team'].fillna('FA').str.upper().str.strip(),
+            'rank': cleaned_df['ADP'].fillna(999),  # Use ADP as rank
+            'projected_points': cleaned_df['FPTS'].fillna(0),
+            'bye_week': 4 + (cleaned_df.index % 14),  # Generate bye weeks (4-17)
+            
+            # Additional stats for potential future features
+            'completions': cleaned_df.get('CMP', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'attempts': cleaned_df.get('ATT', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'pass_yards': cleaned_df.get('Pass YDS', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'pass_tds': cleaned_df.get('Pass TDS', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'interceptions': cleaned_df.get('INT', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'carries': cleaned_df.get('CAR', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'rush_yards': cleaned_df.get('Rush YDS', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'rush_tds': cleaned_df.get('Rush TDS', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'receptions': cleaned_df.get('REC', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'rec_yards': cleaned_df.get('Rec YDS', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'rec_tds': cleaned_df.get('Rec TDS', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'targets': cleaned_df.get('TAR', pd.Series([0] * len(cleaned_df))).fillna(0),
+            'average_points': cleaned_df.get('Avg', pd.Series([0] * len(cleaned_df))).fillna(0)
+        })
+        
+        # Sort by rank (ADP) - lower ADP means higher priority
+        processed_df = processed_df.sort_values('rank').reset_index(drop=True)
+        
+        return processed_df
     
     def _generate_sample_data(self) -> pd.DataFrame:
         """Generate sample fantasy football player data"""
