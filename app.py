@@ -11,7 +11,7 @@ st.set_page_config(
     page_title="Fantasy Football Draft Assistant",
     page_icon="🏈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Initialize session state
@@ -277,27 +277,55 @@ def show_draft_sidebar_control():
         st.session_state.show_reset_confirmation = False
     
     if not st.session_state.show_reset_confirmation:
-        if st.button("🔄 Reset", type="secondary", key="reset_sidebar", use_container_width=True):
+        if st.button("Reset Draft", type="secondary", key="reset_sidebar", use_container_width=True):
             st.session_state.show_reset_confirmation = True
             st.rerun()
     else:
-        if st.button("✅ Confirm Reset", type="primary", key="confirm_reset_sidebar", use_container_width=True):
-            st.session_state.draft_configured = False
-            st.session_state.draft_engine = None
-            st.session_state.show_reset_confirmation = False
-            st.rerun()
+        # Create two columns for confirm and cancel buttons
+        confirm_col, cancel_col = st.columns(2)
+        
+        with confirm_col:
+            if st.button("Confirm", type="primary", key="confirm_reset_sidebar", use_container_width=True):
+                st.session_state.draft_configured = False
+                st.session_state.draft_engine = None
+                st.session_state.show_reset_confirmation = False
+                st.rerun()
+        
+        with cancel_col:
+            if st.button("Cancel", type="secondary", key="cancel_reset_sidebar", use_container_width=True):
+                st.session_state.show_reset_confirmation = False
+                st.rerun()
     
     # Export button
-    if st.button("💾 Export Draft", key="export_sidebar", use_container_width=True):
-        draft_data = export_draft_state(st.session_state.draft_engine)
-        st.download_button(
-            "📥 Download",
-            data=draft_data,
-            file_name=f"draft_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-            mime="application/json",
-            key="download_sidebar",
-            use_container_width=True
-        )
+    # Initialize export confirmation state
+    if 'show_export_confirmation' not in st.session_state:
+        st.session_state.show_export_confirmation = False
+
+    if not st.session_state.show_export_confirmation:
+        if st.button("Export Draft", key="export_sidebar", use_container_width=True):
+            st.session_state.show_export_confirmation = True
+            st.rerun()
+    else:
+        # Create two columns for download and cancel buttons
+        download_col, cancel_col = st.columns(2)
+        
+        with download_col:
+            draft_data = export_draft_state(st.session_state.draft_engine)
+            if st.download_button(
+                "Download",
+                type="primary",
+                data=draft_data,
+                file_name=f"draft_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                mime="application/json",
+                key="download_sidebar",
+                use_container_width=True
+            ):
+                st.session_state.show_export_confirmation = False
+        
+        with cancel_col:
+            if st.button("Cancel", type="secondary", key="cancel_export_sidebar", use_container_width=True):
+                st.session_state.show_export_confirmation = False
+                st.rerun()
 
 def show_live_draft_view():
     """Show the main live draft interface"""
@@ -330,15 +358,28 @@ def show_live_draft_view():
 def get_position_color(position):
     """Get the background color for a position"""
     position_colors = {
-        'QB': '#6A1B9A',  # Purple
-        'RB': '#2E7D32',  # Green
-        'WR': '#1976D2',  # Blue
-        'TE': '#E65100',  # Orange
-        'K': '#5D4037',   # Brown
-        'DEF': '#424242', # Dark Gray
-        'FLEX': '#795548' # Medium Brown
+        'QB': '#be5e84',  # Custom Purple
+        'RB': '#73c3a6',  # Custom Green
+        'WR': '#46a1cb',  # Custom Blue
+        'TE': '#cc8d4a',  # Custom Orange
+        'K': '#423E3B',   # Custom Brown
+        'DEF': '#424242', # Dark Gray (unchanged)
+        'FLEX': '#795548' # Medium Brown (unchanged)
     }
     return position_colors.get(position, '#757575')  # Default gray
+
+def format_player_name_short(full_name):
+    """Convert 'Justin Jefferson' to 'J. Jefferson'"""
+    if not full_name or len(full_name.strip()) == 0:
+        return full_name
+    
+    name_parts = full_name.strip().split()
+    if len(name_parts) >= 2:
+        first_initial = name_parts[0][0].upper()
+        last_name = name_parts[-1]  # Use last part as last name
+        return f"{first_initial}. {last_name}"
+    else:
+        return full_name  # Return as-is if only one name part
 
 def show_mini_draft_board():
     """Show a compact, scrollable draft board with 4 rounds context"""
@@ -365,7 +406,20 @@ def show_mini_draft_board():
     # Create header row with team numbers
     header_cols = st.columns([1] + [2] * engine.league_size)
     with header_cols[0]:
-        st.markdown("<div style='text-align: center; font-size: 18px; font-weight: bold;'>Round</div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="
+            text-align: center; 
+            font-size: 18px; 
+            font-weight: bold;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+        ">
+            Round
+        </div>
+        """, unsafe_allow_html=True)
     for i in range(engine.league_size):
         with header_cols[i + 1]:
             team_num = i + 1
@@ -381,12 +435,29 @@ def show_mini_draft_board():
                     margin: 2px 0;
                     font-size: 16px;
                     font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 40px;
                 ">
-                    Team {team_num} 🎯
+                    Team {team_num}
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown(f"<div style='text-align: center; font-size: 16px; font-weight: bold;'>Team {team_num}</div>", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="
+                    text-align: center; 
+                    font-size: 16px; 
+                    font-weight: bold;
+                    padding: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 40px;
+                ">
+                    Team {team_num}
+                </div>
+                """, unsafe_allow_html=True)
 
     # Create a container for the draft board
     st.markdown("""
@@ -403,17 +474,15 @@ def show_mini_draft_board():
     """, unsafe_allow_html=True)
     
     # Create a container with limited height for all rounds
-    with st.container(height=350):
+    with st.container(height=300):
         # Create scrollable content
         for round_num in range(start_round, end_round + 1):
             round_cols = st.columns([1] + [2] * engine.league_size)
             
             # Round number column
             with round_cols[0]:
-                if round_num == current_round:
-                    st.markdown("**🎯**")
-                else:
-                    st.write(f"**{round_num}**")
+                st.write(f"**{round_num}**")
+
             
             # Create round picks data
             round_picks = []
@@ -459,15 +528,14 @@ def show_mini_draft_board():
                                 padding: 4px;
                                 text-align: center;
                                 background-color: {position_color};
-                                color: white;
+                                color: black;
                                 margin: 1px 0;
                                 min-height: 45px;
-                                font-size: 11px;
+                                font-size: 12px;
                                 font-weight: bold;
                             ">
-                                <strong>#{pick_number}</strong><br>
-                                <strong>{pick['player_name'][:12]}{'...' if len(pick['player_name']) > 12 else ''}</strong><br>
-                                <small>{pick['position']}</small>
+                                <strong>#{pick_number}: {pick['position']} - {pick.get('nfl_team', 'N/A')}</strong><br>
+                                <strong style="font-size: 14px;">{format_player_name_short(pick['player_name'])}</strong>
                             </div>
                             """, unsafe_allow_html=True)
                                 
@@ -482,15 +550,14 @@ def show_mini_draft_board():
                                 padding: 4px;
                                 text-align: center;
                                 background-color: #F44336;
-                                color: white;
+                                color: black;
                                 margin: 1px 0;
                                 min-height: 45px;
                                 font-size: 11px;
                                 font-weight: bold;
                             ">
                                 <strong>#{pick_number}</strong><br>
-                                <strong>NOW PICKING</strong><br>
-                                <small>Team {team_num}</small>
+                                <strong style="font-size: 14px;">NOW PICKING</strong><br>
                             </div>
                             """, unsafe_allow_html=True)
                             
@@ -498,10 +565,10 @@ def show_mini_draft_board():
                             # Future pick
                             upcoming_pick_info = engine.get_pick_info(pick_number)
                             if upcoming_pick_info and upcoming_pick_info['is_user_pick']:
-                                # User's upcoming pick - light green with dashed border
+                                # User's upcoming pick - light green with solid border
                                 st.markdown(f"""
                                 <div style="
-                                    border: 3px dashed #2E7D32;
+                                    border: 3px solid #2E7D32;
                                     border-radius: 4px;
                                     padding: 4px;
                                     text-align: center;
@@ -513,19 +580,17 @@ def show_mini_draft_board():
                                     font-weight: bold;
                                 ">
                                     <strong>#{pick_number}</strong><br>
-                                    <strong>🎯 YOUR PICK</strong><br>
-                                    <small>Team {team_num}</small>
                                 </div>
                                 """, unsafe_allow_html=True)
                             else:
                                 # Regular future pick with user column highlighting
                                 border_color = "#2E7D32" if team_num == engine.user_position else "#757575"
                                 border_width = "2px" if team_num == engine.user_position else "1px"
-                                background_color = "#F1F8E9" if team_num == engine.user_position else "#E0E0E0"
+                                background_color = "#F1F8E989" if team_num == engine.user_position else "#F1F8E989"
                                 
                                 st.markdown(f"""
                                 <div style="
-                                    border: {border_width} dashed {border_color};
+                                    border: {border_width} solid {border_color};
                                     border-radius: 4px;
                                     padding: 4px;
                                     text-align: center;
@@ -536,8 +601,6 @@ def show_mini_draft_board():
                                     font-size: 11px;
                                 ">
                                     <strong>#{pick_number}</strong><br>
-                                    <br>
-                                    <strong>Team {team_num}</strong><br>
                                 </div>
                                 """, unsafe_allow_html=True)
             
@@ -547,7 +610,7 @@ def show_mini_draft_board():
 
 def show_draft_board_view():
     """Show the draft board grid with all picks"""
-    st.subheader("📋 Draft Board Overview")
+#    st.subheader("📋 Draft Board Overview")
     
     engine = st.session_state.draft_engine
     draft_board = engine.get_draft_board()
@@ -563,7 +626,20 @@ def show_draft_board_view():
     # Header row with team numbers
     header_cols = st.columns([1] + [2] * engine.league_size)
     with header_cols[0]:
-        st.markdown("<div style='text-align: center; font-size: 18px; font-weight: bold;'>Round</div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="
+            text-align: center; 
+            font-size: 18px; 
+            font-weight: bold;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+        ">
+            Round
+        </div>
+        """, unsafe_allow_html=True)
     for i in range(engine.league_size):
         with header_cols[i + 1]:
             team_num = i + 1
@@ -579,14 +655,29 @@ def show_draft_board_view():
                     margin: 2px 0;
                     font-size: 16px;
                     font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 40px;
                 ">
-                    Team {team_num} 🎯
+                    Team {team_num}
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown(f"<div style='text-align: center; font-size: 16px; font-weight: bold;'>Team {team_num}</div>", unsafe_allow_html=True)
-    
-    st.divider()
+                st.markdown(f"""
+                <div style="
+                    text-align: center; 
+                    font-size: 16px; 
+                    font-weight: bold;
+                    padding: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 40px;
+                ">
+                    Team {team_num}
+                </div>
+                """, unsafe_allow_html=True)
     
     # Create rows for each round
     for round_num in range(1, engine.total_rounds + 1):
@@ -648,14 +739,13 @@ def show_draft_board_view():
                             padding: 8px;
                             text-align: center;
                             background-color: {position_color};
-                            color: white;
+                            color: black;
                             margin: 2px 0;
                             min-height: 60px;
                             font-weight: bold;
                         ">
-                            <small><strong>#{pick_number}</strong></small><br>
-                            <strong>{pick['player_name']}</strong><br>
-                            <small>{pick['position']} - {pick.get('nfl_team', 'N/A')}</small>
+                            <small><strong>#{pick_number} {pick['position']} - {pick.get('nfl_team', 'N/A')}</strong></small><br>
+                            <strong style="font-size: 16px;">{format_player_name_short(pick['player_name'])}</strong>
                         </div>
                         """, unsafe_allow_html=True)
                             
@@ -670,14 +760,13 @@ def show_draft_board_view():
                             padding: 8px;
                             text-align: center;
                             background-color: #F44336;
-                            color: white;
+                            color: black;
                             margin: 2px 0;
                             min-height: 60px;
                             font-weight: bold;
                         ">
                             <small><strong>#{pick_number}</strong></small><br>
                             <strong>CURRENT PICK</strong><br>
-                            <small>Team {team_num}</small>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -685,10 +774,10 @@ def show_draft_board_view():
                         # Future pick - light gray styling
                         upcoming_pick_info = engine.get_pick_info(pick_number)
                         if upcoming_pick_info and upcoming_pick_info['is_user_pick']:
-                            # User's upcoming pick - light green with dashed border
+                            # User's upcoming pick - light green with solid border
                             st.markdown(f"""
                             <div style="
-                                border: 3px dashed #2E7D32;
+                                border: 3px solid #2E7D32;
                                 border-radius: 6px;
                                 padding: 8px;
                                 text-align: center;
@@ -699,19 +788,18 @@ def show_draft_board_view():
                                 font-weight: bold;
                             ">
                                 <small><strong>#{pick_number}</strong></small><br>
-                                <small>🎯 YOUR PICK</small><br>
-                                <small>Team {team_num}</small>
+                                <br>
                             </div>
                             """, unsafe_allow_html=True)
                         else:
                             # Regular future pick with user column highlighting
                             border_color = "#2E7D32" if team_num == engine.user_position else "#757575"
                             border_width = "2px" if team_num == engine.user_position else "1px"
-                            background_color = "#F1F8E9" if team_num == engine.user_position else "#E0E0E0"
+                            background_color = "#F1F8E989" if team_num == engine.user_position else "#F1F8E989"
                             
                             st.markdown(f"""
                             <div style="
-                                border: {border_width} dashed {border_color};
+                                border: {border_width} solid {border_color};
                                 border-radius: 6px;
                                 padding: 8px;
                                 text-align: center;
@@ -720,8 +808,8 @@ def show_draft_board_view():
                                 margin: 2px 0;
                                 min-height: 60px;
                             ">
-                                <small><strong>#{pick_number}</strong></small><br>
-                                <small>Team {team_num}</small>
+                                <small><strong>#{pick_number}</strong></small><br>\
+                                <br>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -762,20 +850,12 @@ def show_team_rosters_minimized():
 
 def show_team_selection_and_roster():
     """Show team selection dropdown and roster for selected team with smart position assignment"""
-    # Integrated header with collapse button and team dropdown on same line
-    col1, col2, col3 = st.columns([0.5, 2, 2])
-    
+    # Header with team dropdown and collapse button on the right
+    col1, col2 = st.columns([3, 0.5])
+
     with col1:
-        if st.button("▶", help="Collapse to sidebar", key="minimize_rosters"):
-            st.session_state.rosters_expanded = False
-            st.rerun()
-    
-    with col2:
-        st.subheader("Team Rosters")
-    
-    with col3:
         engine = st.session_state.draft_engine
-        # Team selection dropdown inline with header
+        # Team selection dropdown takes up the left space
         team_options = [f"Team {i}" for i in range(1, engine.league_size + 1)]
         selected_team_idx = st.selectbox(
             "Select Team:",
@@ -786,6 +866,11 @@ def show_team_selection_and_roster():
             label_visibility="collapsed"
         )
         selected_team = selected_team_idx + 1
+
+    with col2:
+        if st.button("▶", help="Collapse to sidebar", key="minimize_rosters"):
+            st.session_state.rosters_expanded = False
+            st.rerun()
     
     # Get roster for selected team
     roster = engine.get_team_roster(selected_team)
@@ -956,7 +1041,7 @@ def display_position_slot(slot_label, player, position_type):
         # Empty slot placeholder showing position name
         st.markdown(f"""
         <div style="
-            border: 2px dashed #666666;
+            border: 2px solid #666666;
             border-radius: 8px;
             padding: 8px 12px;
             background-color: #2B2B2B;
@@ -1019,11 +1104,7 @@ def calculate_roster_height():
 
 def show_available_players(expanded=False):
     """Display available players with dynamic scrolling to match roster height"""
-    # Add expanded indicator when in full width mode
-    if expanded or not st.session_state.rosters_expanded:
-        st.subheader("Available Players")
-    else:
-        st.subheader("Available Players")
+
     
     player_db = st.session_state.player_db
     drafted_players = st.session_state.draft_engine.get_drafted_players()
@@ -1031,8 +1112,6 @@ def show_available_players(expanded=False):
     # Initialize filter states
     if 'available_players_position_filter' not in st.session_state:
         st.session_state.available_players_position_filter = "All"
-    if 'search_expanded' not in st.session_state:
-        st.session_state.search_expanded = False
     
     # Get roster configuration and create position options
     roster_config = st.session_state.draft_engine.roster_config
@@ -1041,29 +1120,17 @@ def show_available_players(expanded=False):
         if roster_config.get(position, 0) > 0:
             position_options.append(position)
     
-    # Single line layout with collapsible search
-    if st.session_state.search_expanded:
-        # Expanded state: search bar takes more space, buttons compressed
-        search_col, button_col = st.columns([1.5, 2.5])
-        
-        with search_col:
-            search_term = st.text_input("🔍 Search Player Name", placeholder="Type player name...", key="expanded_search")
-            # Auto-collapse when search is empty and loses focus (simulated)
-            if not search_term:
-                # Add a small collapse button next to search
-                if st.button("✕", key="collapse_search", help="Collapse search"):
-                    st.session_state.search_expanded = False
-                    st.rerun()
-    else:
-        # Collapsed state: search icon takes minimal space, buttons get more room
-        search_col, button_col = st.columns([0.3, 3.7])
-        search_term = ""  # No search when collapsed
-        
-        with search_col:
-            # Search icon button to expand
-            if st.button("🔍", key="expand_search", help="Click to search players", use_container_width=True):
-                st.session_state.search_expanded = True
-                st.rerun()
+    # Simple search and filter layout
+    search_col, button_col = st.columns([1, 2.5])
+    
+    with search_col:
+        # Simple search input without title or close button
+        search_term = st.text_input(
+            "search", 
+            placeholder="Type player name...", 
+            key="player_search",
+            label_visibility="collapsed"  # Hide the label completely
+        )
     
     # Position filter buttons - single row layout
     with button_col:
@@ -1073,14 +1140,8 @@ def show_available_players(expanded=False):
         for i, position in enumerate(position_options):
             with button_cols[i]:
                 button_type = "primary" if st.session_state.available_players_position_filter == position else "secondary"
-                # Shorter button labels when search is expanded to save space
-                if st.session_state.search_expanded and position not in ["All", "QB", "RB", "WR", "TE", "K"]:
-                    # Use shorter labels for longer position names when search is expanded
-                    display_label = {"FLEX": "FLX", "SUPERFLEX": "SF", "DEF": "D"}.get(position, position)
-                else:
-                    display_label = position
                 
-                if st.button(display_label, key=f"pos_filter_{position}", type=button_type, use_container_width=True):
+                if st.button(position, key=f"pos_filter_{position}", type=button_type, use_container_width=True):
                     st.session_state.available_players_position_filter = position
                     st.rerun()
     
@@ -1113,75 +1174,67 @@ def show_available_players(expanded=False):
     
     # Header row
     header_cols = st.columns([1, 1, 3, 1, 1, 1])
+
     with header_cols[0]:
-        st.write("**Action**")
+        st.markdown("<div style='padding: 8px 0; font-size: 15px; font-weight: bold; text-align: center;'>Action</div>", unsafe_allow_html=True)
+
     with header_cols[1]:
-        st.write("**ADP**")
+        st.markdown("<div style='padding: 8px 0; font-size: 15px; font-weight: bold; text-align: center;'>ADP</div>", unsafe_allow_html=True)
+
     with header_cols[2]:
-        st.write("**Player**")
+        st.markdown("<div style='padding: 8px 0; font-size: 15px; font-weight: bold;'>Player</div>", unsafe_allow_html=True)
+
     with header_cols[3]:
-        st.write("**Pos**")
+        st.markdown("<div style='padding: 8px 0; font-size: 15px; font-weight: bold; text-align: center;'>Pos</div>", unsafe_allow_html=True)
+
     with header_cols[4]:
-        st.write("**Team**")
+        st.markdown("<div style='padding: 8px 0; font-size: 15px; font-weight: bold; text-align: center;'>Team</div>", unsafe_allow_html=True)
+
     with header_cols[5]:
-        st.write("**Proj**")
+        st.markdown("<div style='padding: 8px 0; font-size: 15px; font-weight: bold; text-align: center;'>Proj</div>", unsafe_allow_html=True)
+
+
 
     
     # Calculate height to match roster section
     container_height = calculate_roster_height()
     
-    # Add CSS for more compact player rows
+    # Add CSS for compact styling
     st.markdown("""
     <style>
-    /* Decrease row height in available players */
-    div[data-testid="column"] {
-        padding: 2px 4px !important;
-    }
-
-    /* Reduce spacing between player rows */
-    .stButton {
-        margin: 1px 0 !important;
-    }
-
-    /* Reduce text size and line height for more compact display */
-    .stMarkdown p {
-        font-size: 13px !important;
-        line-height: 1.2 !important;
-        margin: 2px 0 !important;
-    }
-
-    /* Make buttons more compact */
+    /* Keep buttons compact */
     .stButton button {
         padding: 4px 8px !important;
-        font-size: 12px !important;
+        font-size: 13px !important;
     }
     </style>
     """, unsafe_allow_html=True)
     
     # Create scrollable container with dynamic height
     with st.container(height=container_height):
-        # Display all players in compact rows
+        # Display all players in simple columns with consistent spacing
         for idx, player in available_players.iterrows():
             col1, col2, col3, col4, col5, col6 = st.columns([1, 1, 3, 1, 1, 1])
             
             with col1:
-                if st.button(f"Draft", key=f"draft_{player['id']}"):
+                if st.button(f"Draft", key=f"draft_{player['id']}", use_container_width=True):
                     draft_player(player)
             
             with col2:
-                st.write(f"#{player.get('rank', 'N/A')}")
+                # Add some padding to text to match button height
+                st.markdown(f"<div style='padding: 8px 0; font-size: 15px; text-align: center;'>{player.get('rank', 'N/A')}</div>", unsafe_allow_html=True)
             
             with col3:
-                st.write(f"**{player['name']}**")
+                st.markdown(f"<div style='padding: 8px 0; font-size: 15px; font-weight: bold;'>{player['name']}</div>", unsafe_allow_html=True)
             
             with col4:
-                st.write(player['position'])
+                st.markdown(f"<div style='padding: 8px 0; font-size: 15px; text-align: center;'>{player['position']}</div>", unsafe_allow_html=True)
             
             with col5:
-                st.write(player['team'])
+                st.markdown(f"<div style='padding: 8px 0; font-size: 15px; text-align: center;'>{player['team']}</div>", unsafe_allow_html=True)
             
             with col6:
-                st.write(player.get('projected_points', 'N/A'))
+                st.markdown(f"<div style='padding: 8px 0; font-size: 15px; text-align: center; color: #4CAF50;'>{player.get('projected_points', 'N/A')}</div>", unsafe_allow_html=True)
 
 def draft_player(player):
     """Draft a player to the current team"""
@@ -1197,7 +1250,6 @@ def draft_player(player):
     )
     
     if success:
-        st.success(f"Drafted {player['name']} to Team {current_team}!")
         st.rerun()
     else:
         st.error("Error drafting player. Please try again.")
