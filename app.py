@@ -220,11 +220,11 @@ def draft_configuration():
         st.info(f"**Draft Rounds:** {total_spots}")
         
         st.write("")
-        st.write("**Coming Soon:**")
-        st.write("• Import/Export drafts")
-        st.write("• Custom player rankings")
-        st.write("• Draft timer")
-        st.write("• Mock draft mode")
+        #st.write("**Coming Soon:**")
+        #st.write("• Import/Export drafts")
+        #st.write("• Custom player rankings")
+        #st.write("• Draft timer")
+        #st.write("• Mock draft mode")
 
 def draft_interface():
     """Tabbed draft interface with comprehensive draft view and draft board"""
@@ -852,69 +852,7 @@ def show_settings_view():
             st.success(f"You are now controlling Team {new_team}!")
             st.rerun()
     
-    # Column 2 - Modify Roster Configuration
-    with col2:
-        st.subheader("Roster Configuration")
-        st.write("Modify roster settings (this will recalculate draft rounds):")
-        
-        current_config = engine.roster_config.copy()
-        
-        # Helper function for +/- buttons (same as main menu)
-        def settings_roster_position_selector(position_name, pos_key, min_val, max_val, current_val):
-            pos_col1, pos_col2, pos_col3, pos_col4 = st.columns([2.5, 0.6, 0.4, 0.6])
-            with pos_col1:
-                st.write(f"**{position_name}:**")
-            with pos_col2:
-                minus_disabled = current_val <= min_val
-                if st.button("➖", key=f"settings_minus_{pos_key}", disabled=minus_disabled, use_container_width=True, 
-                           help="Decrease" if not minus_disabled else "At minimum"):
-                    return current_val - 1
-            with pos_col3:
-                st.markdown(f"<div style='text-align: center; padding: 8px; font-weight: bold; font-size: 16px; background-color: #262730; border-radius: 4px;'>{current_val}</div>", 
-                           unsafe_allow_html=True)
-            with pos_col4:
-                plus_disabled = current_val >= max_val
-                if st.button("➕", key=f"settings_plus_{pos_key}", disabled=plus_disabled, use_container_width=True,
-                           help="Increase" if not plus_disabled else "At maximum"):
-                    return current_val + 1
-            
-            return current_val
-        
-        # Roster positions with +/- buttons
-        new_qb = settings_roster_position_selector("QB", "qb", 0, 3, current_config.get('QB', 0))
-        new_rb = settings_roster_position_selector("RB", "rb", 0, 4, current_config.get('RB', 0))
-        new_wr = settings_roster_position_selector("WR", "wr", 0, 4, current_config.get('WR', 0))
-        new_te = settings_roster_position_selector("TE", "te", 0, 3, current_config.get('TE', 0))
-        new_flex = settings_roster_position_selector("FLEX", "flex", 0, 3, current_config.get('FLEX', 0))
-        new_superflex = settings_roster_position_selector("SUPERFLEX", "superflex", 0, 3, current_config.get('SUPERFLEX', 0))
-        new_k = settings_roster_position_selector("K", "k", 0, 2, current_config.get('K', 0))
-        new_def = settings_roster_position_selector("DEF", "def", 0, 2, current_config.get('DEF', 0))
-        new_bench = settings_roster_position_selector("BN", "bench", 0, 15, current_config.get('BENCH', 0))
-        
-        # Update button at bottom
-        if st.button("Update Roster Configuration", key="update_roster_config", type="primary", use_container_width=True):
-            # Calculate new total
-            new_total = new_qb + new_rb + new_wr + new_te + new_flex + new_superflex + new_k + new_def + new_bench
-            
-            # Update the roster configuration
-            new_config = {
-                'QB': new_qb,
-                'RB': new_rb,
-                'WR': new_wr,
-                'TE': new_te,
-                'FLEX': new_flex,
-                'SUPERFLEX': new_superflex,
-                'K': new_k,
-                'DEF': new_def,
-                'BENCH': new_bench
-            }
-            
-            engine.roster_config = new_config
-            engine.total_rounds = new_total
-            engine.total_picks = new_total * engine.league_size
-            
-            st.success("Roster configuration updated!")
-            st.rerun()
+    
     
 
 def show_team_rosters_minimized():
