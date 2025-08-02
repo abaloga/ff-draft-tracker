@@ -104,6 +104,107 @@ class DraftEngine:
         
         return True
     
+    def assign_player_to_pick(self, pick_number: int, player_id: str, player_name: str, 
+                             position: str, team: int, nfl_team: str = None) -> bool:
+        """Manually assign a player to a specific pick number (for admin use)"""
+        # Convert numpy data types to Python native types
+        if hasattr(player_id, 'item'):  # numpy types have .item() method
+            player_id = str(player_id.item())
+        else:
+            player_id = str(player_id)
+        
+        if hasattr(player_name, 'item'):
+            player_name = str(player_name.item())
+        else:
+            player_name = str(player_name)
+        
+        if hasattr(position, 'item'):
+            position = str(position.item())
+        else:
+            position = str(position)
+        
+        if nfl_team and hasattr(nfl_team, 'item'):
+            nfl_team = str(nfl_team.item())
+        elif nfl_team:
+            nfl_team = str(nfl_team)
+        
+        # Validate pick number
+        if pick_number < 1 or pick_number > self.total_picks:
+            print(f"DEBUG: Invalid pick number {pick_number}, must be 1-{self.total_picks}")
+            return False
+        
+        # Check if pick is already taken
+        existing_picks = [p['pick_number'] for p in self.drafted_players]
+        if pick_number in existing_picks:
+            print(f"DEBUG: Pick {pick_number} already taken. Existing picks: {sorted(existing_picks)}")
+            return False
+        
+        # Validate team number
+        if team < 1 or team > self.league_size:
+            print(f"DEBUG: Invalid team number {team}, must be 1-{self.league_size}")
+            return False
+        
+        # Validate required parameters
+        if not player_id or not player_name or not position:
+            print(f"DEBUG: Missing required parameters - ID: {player_id}, Name: {player_name}, Position: {position}")
+            return False
+        
+        # Calculate round number
+        round_num = ((pick_number - 1) // self.league_size) + 1
+        
+        print(f"DEBUG: Creating pick record - Pick: {pick_number}, Round: {round_num}, Team: {team}, Player: {player_name}")
+        
+        # Create draft pick record
+        pick_record = {
+            'pick_number': pick_number,
+            'round': round_num,
+            'team': team,
+            'player_id': player_id,
+            'player_name': player_name,
+            'position': position,
+            'nfl_team': nfl_team
+        }
+        
+        # Add to draft record and team roster
+        self.drafted_players.append(pick_record)
+        self.team_rosters[team].append(pick_record)
+        
+        # Sort drafted_players by pick_number to maintain order
+        self.drafted_players.sort(key=lambda x: x['pick_number'])
+        
+        print(f"DEBUG: Successfully added pick. Total drafted players: {len(self.drafted_players)}")
+        
+        # Update current pick to the next available (unpicked) slot
+        # Get all picked numbers and sort them
+        all_picked_numbers = sorted([p['pick_number'] for p in self.drafted_players])
+        
+        # Find the first gap in the sequence or the next number after the highest pick
+        next_pick = 1
+        for pick_num in all_picked_numbers:
+            if pick_num == next_pick:
+                next_pick += 1
+            elif pick_num > next_pick:
+                # Found a gap, current next_pick is the correct one
+                break
+        
+        # Ensure we don't exceed total picks
+        if next_pick > self.total_picks:
+            next_pick = self.total_picks + 1
+        
+        old_current_pick = self.current_pick
+        self.current_pick = next_pick
+        
+        # Update current round based on the new current pick
+        if self.current_pick <= self.total_picks:
+            self.current_round = ((self.current_pick - 1) // self.league_size) + 1
+        else:
+            # Draft is complete
+            self.current_round = self.total_rounds + 1
+        
+        print(f"DEBUG: Updated current pick from {old_current_pick} to {self.current_pick}, round {self.current_round}")
+        
+        return True
+    
     def undo_last_pick(self) -> bool:
         """Undo the last draft pick"""
         if not self.drafted_players:
@@ -114,8 +215,31 @@ class DraftEngine:
         self.team_rosters[team] = [p for p in self.team_rosters[team] 
                                   if p['pick_number'] != last_pick['pick_number']]
         
-        self.current_pick -= 1
-        self.current_round = ((self.current_pick - 1) // self.league_size) + 1
+        # Update current pick to the next available (unpicked) slot
+        # Get all remaining picked numbers and sort them
+        all_picked_numbers = sorted([p['pick_number'] for p in self.drafted_players])
+        
+        # Find the first gap in the sequence or the next number after the highest pick
+        next_pick = 1
+        for pick_num in all_picked_numbers:
+            if pick_num == next_pick:
+                next_pick += 1
+            elif pick_num > next_pick:
+                # Found a gap, current next_pick is the correct one
+                break
+        
+        # Ensure we don't exceed total picks
+        if next_pick > self.total_picks:
+            next_pick = self.total_picks + 1
+        
+        self.current_pick = next_pick
+        
+        # Update current round based on the new current pick
+        if self.current_pick <= self.total_picks:
+            self.current_round = ((self.current_pick - 1) // self.league_size) + 1
+        else:
+            # Draft is complete
+            self.current_round = self.total_rounds + 1
         
         return True
     
